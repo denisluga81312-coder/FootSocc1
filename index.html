@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Turbo Soccer — Arena</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#081321;color:#eaf5ff;font-family:system-ui,Arial,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+.wrap{width:min(100%,1100px)}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 12px;flex-wrap:wrap}
+h1{font-size:clamp(20px,3vw,30px);margin:0;letter-spacing:1px}
+.sub{color:#9eb5c9;font-size:13px}
+.score{display:flex;align-items:center;gap:16px;background:#12243a;border:1px solid #29415c;border-radius:14px;padding:9px 18px;font-weight:800;font-size:24px}
+.blue{color:#54c7ff}.orange{color:#ffad55}.timer{font-variant-numeric:tabular-nums;color:white}
+canvas{display:block;width:100%;height:auto;background:#137b52;border:3px solid #9dc7df;border-radius:14px;box-shadow:0 18px 55px #0008;touch-action:none}
+.bottom{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;color:#a9bfd2;font-size:13px}
+kbd{background:#1b3048;border:1px solid #49627b;border-radius:5px;padding:2px 6px;color:#fff}
+button{background:#1e83bb;color:white;border:0;border-radius:9px;padding:9px 14px;font-weight:700;cursor:pointer}
+button:hover{background:#279bd8}
+.boost{height:9px;width:130px;background:#23364b;border-radius:8px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px}
+.boost i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#32d8ff,#b8f8ff)}
+.menu-screen{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 50% 35%,#173e5d 0,#081321 68%);text-align:center}
+.menu-panel{width:min(92vw,480px);padding:34px 28px;background:#10243a;border:1px solid #35516d;border-radius:22px;box-shadow:0 22px 70px #0009}
+.game-logo{font-size:clamp(34px,8vw,58px);font-weight:1000;letter-spacing:2px;color:#eaf7ff;text-shadow:0 5px 24px #0008}
+.game-logo span{color:#42c9ff}
+.menu-hint,.menu-note{color:#a9bfd2;margin-top:18px}
+.menu-buttons{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:28px 0 8px}
+.menu-buttons button{min-width:105px;padding:12px 18px;font-size:16px}
+.secondary{background:#31475e}
+.menu-back{margin-top:18px;background:#31475e}
+.skin-grid{display:grid;grid-template-columns:repeat(5,minmax(42px,1fr));gap:12px;margin:24px auto 8px;max-width:360px}
+.skin-swatch{position:relative;width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #d8e8f5;cursor:pointer;box-shadow:0 4px 12px #0007}
+.skin-swatch.selected{border-color:#fff;box-shadow:0 0 0 3px #48caff,0 0 18px #48caffaa}
+.skin-swatch.selected::after{content:'✓';position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:23px;height:23px;border-radius:50%;background:#fff;color:#10243a;font-size:16px;font-weight:1000;line-height:23px}
+@media(max-width:600px){.bottom{font-size:11px}.score{font-size:19px}}
+</style>
+</head>
+<body>
+
+<div class="menu-screen" id="titleScreen">
+ <div class="menu-panel" id="titlePanel" style="cursor:pointer">
+  <div class="game-logo">TURBO <span>SOCCER</span></div>
+  <div class="menu-hint">Haz clic para empezar</div>
+ </div>
+</div>
+
+<div class="menu-screen" id="mainMenu" style="display:none">
+ <div class="menu-panel">
+  <div class="game-logo">TURBO <span>SOCCER</span></div>
+  <div class="menu-buttons">
+   <button id="playBtn">Play</button>
+   <button class="secondary" id="trainBtn">Train</button>
+   <button class="secondary" id="skinsBtn">Skins</button>
+  </div>
+  <div class="menu-note" id="menuMessage"></div>
+ </div>
+</div>
+
+<div class="menu-screen" id="opponentMenu" style="display:none">
+ <div class="menu-panel">
+  <div class="game-logo">PLAY <span>WITH</span></div>
+  <div class="menu-buttons">
+   <button id="friendBtn">FRIEND</button>
+   <button class="secondary" id="botBtn">BOT</button>
+  </div>
+  <button class="menu-back" id="opponentBackBtn">Volver</button>
+ </div>
+</div>
+
+<div class="menu-screen" id="skinsMenu" style="display:none">
+ <div class="menu-panel">
+  <div class="game-logo">CHOOSE <span>SKIN</span></div>
+  <div class="menu-hint">Elige el color de tu coche</div>
+  <div class="skin-grid" id="skinGrid"></div>
+  <button class="menu-back" id="skinsBackBtn">Volver</button>
+ </div>
+</div>
+
+<div class="menu-screen" id="modeMenu" style="display:none">
+ <div class="menu-panel">
+  <div class="game-logo">SELECT <span>MODE</span></div>
+  <div class="menu-buttons">
+   <button id="mode1">1v1</button>
+   <button class="secondary" id="mode2">2v2</button>
+   <button class="secondary" id="mode3">3v3</button>
+  </div>
+  <button class="menu-back" id="backBtn">Volver</button>
+ </div>
+</div>
+
+<div class="wrap" id="gameWrap" style="display:none">
+<header>
+ <div>
+  <h1>⚡ TURBO SOCCER</h1>
+  <div class="sub" id="gameSubtitle">Fútbol de coches · Arena</div>
+ </div>
+ <div class="score">
+  <span class="blue" id="pScore">0</span>
+  <span class="sub">—</span>
+  <span class="timer" id="clock">90</span>
+  <span class="sub">—</span>
+  <span class="orange" id="aScore">0</span>
+ </div>
+</header>
+
+<canvas id="game" width="1000" height="600"></canvas>
+
+<div class="bottom">
+ <div>
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+  conducir · <kbd>ESPACIO</kbd> turbo
+  · <kbd>R</kbd> reiniciar
+  <span id="friendControls" style="display:none">
+   <br>Jugador 2:
+   <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
+   Turbo: <kbd>SHIFT DERECHO</kbd>
+  </span>
+  <span id="trainControls" style="display:none">
+   · <kbd>E</kbd> pelota delante
+  </span>
+ </div>
+
+ <div>
+  Turbo P1
+  <span class="boost"><i id="boostBar"></i></span>
+ </div>
+
+ <div id="friendBoostUI" style="display:none">
+  Turbo P2
+  <span class="boost">
+   <i id="friendBoostBar" style="background:linear-gradient(90deg,#ff9f43,#ffe0a8)"></i>
+  </span>
+ </div>
+
+ <button id="restart">Nueva partida</button>
+ <button id="menuBtn">Menú</button>
+</div>
+</div>
+
+<script>
+(()=>{
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+const W=canvas.width,H=canvas.height;
+const keys={};
+
+let player,friendPlayer;
+let blueTeam=[],orangeTeam=[],allBots=[],ball;
+let blue=0,orange=0,time=90;
+let boost=100,friendBoost=100;
+let ended=false,last=0;
+let selectedMode='1v1';
+let training=false,friendMode=false;
+
+const skinColors=[
+'#35bfff','#ff4d4d','#ff9f1c','#ffd43b','#51cf66',
+'#20c997','#15aabf','#228be6','#4263eb','#7950f2',
+'#be4bdb','#f06595','#ff8787','#a9e34b','#94d82d',
+'#e67700','#9775fa','#748ffc','#ffffff','#64748b'
+];
+
+let selectedSkin=localStorage.getItem('turboSoccerSkin')||skinColors[0];
+if(!skinColors.includes(selectedSkin))selectedSkin=skinColors[0];
+
+function randomBotSkin(){
+ const choices=skinColors.filter(c=>c!==selectedSkin);
+ return choices[Math.floor(Math.random()*choices.length)];
+}
+
+function renderSkinGrid(){
+ const grid=document.getElementById('skinGrid');
+ grid.innerHTML='';
+
+ skinColors.forEach(color=>{
+  const swatch=document.createElement('button');
+  swatch.type='button';
+  swatch.className='skin-swatch'+(color===selectedSkin?' selected':'');
+  swatch.style.background=color;
+  swatch.title='Elegir color '+color;
+  swatch.setAttribute('aria-label','Elegir color '+color);
+
+  swatch.addEventListener('click',()=>{
+   selectedSkin=color;
+   localStorage.setItem('turboSoccerSkin',color);
+   renderSkinGrid();
+  });
+
+  grid.appendChild(swatch);
+ });
+}
+
+const boostPads=[
+ {x:92,y:82,active:true,respawn:0},
+ {x:W-92,y:82,active:true,respawn:0},
+ {x:92,y:H-82,active:true,respawn:0},
+ {x:W-92,y:H-82,active:true,respawn:0}
+];
+
+const goalTop=220,goalBottom=380,goalDepth=28;
+
+function car(x,y,angle,color){
+ return {x,y,vx:0,vy:0,a:angle,color,botBoost:0};
+}
+
+function resetPositions(){
+ const teamSize=training?1:(Number(selectedMode[0])||1);
+
+ player=car(245,H/2,0,selectedSkin);
+ blueTeam=[player];
+ orangeTeam=[];
+ allBots=[];
+ friendPlayer=null;
+
+ const lanes=[-105,105,-175,175];
+
+ if(friendMode){
+  friendPlayer=car(755,H/2,Math.PI,'#ff9f1c');
+  orangeTeam.push(friendPlayer);
+ }else{
+  for(let i=1;i<teamSize;i++){
+   const mate=car(
+    205-(i-1)*24,
+    H/2+lanes[(i-1)%lanes.length],
+    0,
+    randomBotSkin()
+   );
+
+   mate.formationOffset=lanes[(i-1)%lanes.length]*.35;
+   blueTeam.push(mate);
+   allBots.push(mate);
+  }
+
+  for(let i=0;i<(training?0:teamSize);i++){
+   const rival=car(
+    755+(i%2)*25,
+    H/2+lanes[i%lanes.length],
+    Math.PI,
+    randomBotSkin()
+   );
+
+   rival.formationOffset=lanes[i%lanes.length]*.35;
+   orangeTeam.push(rival);
+   allBots.push(rival);
+  }
+ }
+
+ ball={x:W/2,y:H/2,vx:0,vy:0,r:18};
+}
+
+function newGame(){
+ blue=orange=0;
+ time=90;
+ boost=100;
+ friendBoost=100;
+ ended=false;
+ resetPositions();
+ updateHud();
+}
+
+function updateHud(){
+ document.getElementById('pScore').textContent=blue;
+ document.getElementById('aScore').textContent=orange;
+
+ document.getElementById('clock').textContent=
+  training?'∞':Math.ceil(time);
+
+ document.getElementById('boostBar').style.width=boost+'%';
+
+ document.getElementById('friendBoostBar').style.width=
+  friendBoost+'%';
+
+ document.getElementById('friendBoostUI').style.display=
+  friendMode?'inline':'none';
+
+ document.getElementById('friendControls').style.display=
+  friendMode?'inline':'none';
+
+ document.getElementById('trainControls').style.display=
+  training?'inline':'none';
+
+ document.getElementById('gameSubtitle').textContent=
+  friendMode?'Dos jugadores · FRIEND':
+  training?'Modo entrenamiento':
+  'Fútbol de coches · Arena '+selectedMode;
+}
+
+function clamp(v,a,b){
+ return Math.max(a,Math.min(b,v));
+}
+
+function physicsCar(c,dt,control='bot'){
+ let throttle=0,turn=0,botWantsBoost=false;
+
+ const isP1=control==='p1';
+ const isP2=control==='p2';
+
+ if(isP1){
+  throttle=(keys.KeyW?1:0)-(keys.KeyS?1:0);
+  turn=(keys.KeyD?1:0)-(keys.KeyA?1:0);
+ }
+ else if(isP2){
+  throttle=(keys.ArrowUp?1:0)-(keys.ArrowDown?1:0);
+  turn=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0);
+ }
+ else{
+  const attackDir=blueTeam.includes(c)?1:-1;
+  const goalCenter=(goalTop+goalBottom)/2;
+
+  const behindX=ball.x-attackDir*58;
+  const behindY=clamp(
+   ball.y+(goalCenter-ball.y)*.12,
+   55,H-55
+  );
+
+  const toBall=Math.hypot(ball.x-c.x,ball.y-c.y);
+
+  const targetX=toBall<82?ball.x+attackDir*24:behindX;
+  const targetY=toBall<82?ball.y:behindY;
+
+  const dx=targetX-c.x,dy=targetY-c.y;
+  const target=Math.atan2(dy,dx);
+
+  let diff=Math.atan2(
+   Math.sin(target-c.a),
+   Math.cos(target-c.a)
+  );
+
+  turn=clamp(diff*3.1,-1,1);
+  throttle=Math.abs(diff)>2.45?-.45:1;
+
+  const distanceToTarget=Math.hypot(dx,dy);
+
+  botWantsBoost=
+   Math.abs(diff)<.48&&
+   distanceToTarget>105&&
+   distanceToTarget<650&&
+   throttle>0;
+ }
+
+ const speed=Math.hypot(c.vx,c.vy);
+
+ c.a+=turn*(1.8+Math.min(speed/170,1.5))*
+  dt*(throttle<0?-.7:1);
+
+ let boosting=false;
+
+ if(isP1){
+  boosting=keys.Space&&(training||boost>0)&&throttle>=0;
+
+  if(boosting&&!training){
+   boost=Math.max(0,boost-38*dt);
+  }
+ }
+ else if(isP2){
+  boosting=keys.ShiftRight&&friendBoost>0&&throttle>=0;
+
+  if(boosting){
+   friendBoost=Math.max(0,friendBoost-38*dt);
+  }
+ }
+ else{
+  boosting=botWantsBoost||c.botBoost>0;
+
+  if(c.botBoost>0){
+   c.botBoost=Math.max(0,c.botBoost-dt);
+  }
+ }
+
+ const power=boosting?650:430;
+
+ c.vx+=Math.cos(c.a)*power*throttle*dt;
+ c.vy+=Math.sin(c.a)*power*throttle*dt;
+
+ const drag=Math.pow(.985,dt*60);
+
+ c.vx*=drag;
+ c.vy*=drag;
+
+ const max=boosting?430:310;
+ const s=Math.hypot(c.vx,c.vy);
+
+ if(s>max){
+  c.vx*=max/s;
+  c.vy*=max/s;
+ }
+
+ c.x+=c.vx*dt;
+ c.y+=c.vy*dt;
+
+ c.x=clamp(c.x,35,W-35);
+ c.y=clamp(c.y,35,H-35);
+}
+
+function collideCarBall(c){
+ const dx=ball.x-c.x;
+ const dy=ball.y-c.y;
+ const d=Math.hypot(dx,dy);
+ const min=35;
+
+ if(d<min){
+  const nx=dx/(d||1);
+  const ny=dy/(d||1);
+  const over=min-d;
+
+  ball.x+=nx*over;
+  ball.y+=ny*over;
+
+  const impact=Math.max(0,c.vx*nx+c.vy*ny)+95;
+
+  ball.vx+=nx*impact*1.2;
+  ball.vy+=ny*impact*1.2;
+
+  c.vx-=nx*impact*.12;
+  c.vy-=ny*impact*.12;
+ }
+}
+
+function updateBoostPads(dt){
+ if(training)return;
+
+ for(const pad of boostPads){
+  if(!pad.active){
+   pad.respawn-=dt;
+
+   if(pad.respawn<=0){
+    pad.active=true;
+    pad.respawn=0;
+   }
+   continue;
+  }
+
+  if(Math.hypot(player.x-pad.x,player.y-pad.y)<34){
+   boost=Math.min(100,boost+20);
+   pad.active=false;
+   pad.respawn=7;
+   continue;
+  }
+
+  let collected=false;
+
+  for(const bot of allBots){
+   if(Math.hypot(bot.x-pad.x,bot.y-pad.y)<34){
+    bot.botBoost=Math.max(bot.botBoost,1.5);
+    pad.active=false;
+    pad.respawn=7;
+    collected=true;
+    break;
+   }
+  }
+
+  if(collected)continue;
+ }
+}
+
+function drawBoostPads(){
+ if(training)return;
+
+ for(const pad of boostPads){
+  if(!pad.active)continue;
+
+  ctx.save();
+  ctx.translate(pad.x,pad.y);
+
+  ctx.shadowColor='#38dfff';
+  ctx.shadowBlur=24;
+
+  ctx.beginPath();
+  ctx.arc(0,0,19,0,Math.PI*2);
+  ctx.fillStyle='rgba(20,190,255,.28)';
+  ctx.fill();
+
+  ctx.shadowBlur=0;
+  ctx.lineWidth=4;
+  ctx.strokeStyle='#baf5ff';
+  ctx.stroke();
+
+  const grad=ctx.createRadialGradient(-6,-7,2,0,0,16);
+  grad.addColorStop(0,'#ffffff');
+  grad.addColorStop(.35,'#8cecff');
+  grad.addColorStop(1,'#087bdc');
+
+  ctx.beginPath();
+  ctx.arc(0,0,14,0,Math.PI*2);
+  ctx.fillStyle=grad;
+  ctx.fill();
+
+  ctx.lineWidth=2;
+  ctx.strokeStyle='#e8fcff';
+  ctx.stroke();
+
+  ctx.restore();
+ }
+}
+
+function updateBall(dt){
+ ball.x+=ball.vx*dt;
+ ball.y+=ball.vy*dt;
+
+ ball.vx*=Math.pow(.992,dt*60);
+ ball.vy*=Math.pow(.992,dt*60);
+
+ if(ball.y<ball.r){
+  ball.y=ball.r;
+  ball.vy=Math.abs(ball.vy)*.82;
+ }
+
+ if(ball.y>H-ball.r){
+  ball.y=H-ball.r;
+  ball.vy=-Math.abs(ball.vy)*.82;
+ }
+
+ const inGoal=ball.y>goalTop&&ball.y<goalBottom;
+
+ if(ball.x<ball.r&&!inGoal){
+  ball.x=ball.r;
+  ball.vx=Math.abs(ball.vx)*.82;
+ }
+
+ if(ball.x>W-ball.r&&!inGoal){
+  ball.x=W-ball.r;
+  ball.vx=-Math.abs(ball.vx)*.82;
+ }
+
+ if(inGoal&&(ball.x<18||ball.x>W-18)){
+  if(ball.x<18)orange++;
+  else blue++;
+
+  resetPositions();
+  updateHud();
+ }
+}
+
+function draw(){
+ ctx.clearRect(0,0,W,H);
+
+ ctx.fillStyle='#167d55';
+ ctx.fillRect(0,0,W,H);
+
+ for(let i=0;i<10;i++){
+  ctx.fillStyle=i%2?'#ffffff08':'#001d1510';
+  ctx.fillRect(i*100,0,100,H);
+ }
+
+ ctx.strokeStyle='#d8f4e6aa';
+ ctx.lineWidth=3;
+ ctx.strokeRect(18,18,W-36,H-36);
+
+ ctx.beginPath();
+ ctx.moveTo(W/2,18);
+ ctx.lineTo(W/2,H-18);
+ ctx.stroke();
+
+ ctx.beginPath();
+ ctx.arc(W/2,H/2,88,0,Math.PI*2);
+ ctx.stroke();
+
+ ctx.beginPath();
+ ctx.arc(W/2,H/2,5,0,Math.PI*2);
+ ctx.fillStyle='#eafff3';
+ ctx.fill();
+
+ ctx.strokeRect(18,180,125,240);
+ ctx.strokeRect(W-143,180,125,240);
+
+ ctx.strokeRect(18,goalTop,goalDepth,goalBottom-goalTop);
+ ctx.strokeRect(W-18-goalDepth,goalTop,goalDepth,goalBottom-goalTop);
+
+ ctx.fillStyle='#4cc9ff55';
+ ctx.fillRect(0,goalTop,18,goalBottom-goalTop);
+
+ ctx.fillStyle='#ff9c4255';
+ ctx.fillRect(W-18,goalTop,18,goalBottom-goalTop);
+
+ drawBoostPads();
+
+ for(const c of blueTeam)drawCar(c);
+ for(const c of orangeTeam)drawCar(c);
+
+ ctx.beginPath();
+ ctx.ellipse(ball.x+5,ball.y+8,19,10,0,0,Math.PI*2);
+ ctx.fillStyle='#00251b55';
+ ctx.fill();
+
+ const grad=ctx.createRadialGradient(
+  ball.x-7,ball.y-8,2,ball.x,ball.y,20
+ );
+
+ grad.addColorStop(0,'#fff');
+ grad.addColorStop(1,'#b8c7d0');
+
+ ctx.beginPath();
+ ctx.arc(ball.x,ball.y,18,0,Math.PI*2);
+ ctx.fillStyle=grad;
+ ctx.fill();
+
+ ctx.strokeStyle='#607786';
+ ctx.lineWidth=2;
+ ctx.stroke();
+
+ ctx.beginPath();
+ ctx.arc(ball.x,ball.y,7,0,Math.PI*2);
+ ctx.strokeStyle='#8196a1';
+ ctx.stroke();
+
+ if(ended){
+  ctx.fillStyle='#061321bb';
+  ctx.fillRect(0,0,W,H);
+
+  ctx.textAlign='center';
+  ctx.fillStyle='white';
+  ctx.font='bold 48px system-ui';
+
+  let result;
+
+  if(blue===orange)result='¡EMPATE!';
+  else if(friendMode)result=blue>orange?'¡GANA JUGADOR 1!':'¡GANA JUGADOR 2!';
+  else result=blue>orange?'¡HAS GANADO!':'¡GANA NARANJA!';
+
+  ctx.fillText(result,W/2,H/2);
+
+  ctx.font='20px system-ui';
+  ctx.fillText('Pulsa R o Nueva partida',W/2,H/2+42);
+ }
+}
+
+function drawCar(c){
+ ctx.save();
+ ctx.translate(c.x,c.y);
+ ctx.rotate(c.a);
+
+ const p1Boost=
+  c===player&&keys.Space&&(training||boost>0);
+
+ const p2Boost=
+  c===friendPlayer&&keys.ShiftRight&&friendBoost>0;
+
+ if(p1Boost||p2Boost){
+  ctx.fillStyle=c===player?'#5be7ff':'#ffb15b';
+
+  ctx.beginPath();
+  ctx.moveTo(-22,-7);
+  ctx.lineTo(-42,0);
+  ctx.lineTo(-22,7);
+  ctx.fill();
+ }
+
+ ctx.fillStyle='#07111b';
+
+ ctx.fillRect(-14,-17,13,7);
+ ctx.fillRect(7,-17,13,7);
+ ctx.fillRect(-14,10,13,7);
+ ctx.fillRect(7,10,13,7);
+
+ ctx.fillStyle=c.color;
+
+ ctx.beginPath();
+ ctx.roundRect(-23,-13,46,26,8);
+ ctx.fill();
+
+ ctx.fillStyle='#dff7ff';
+
+ ctx.beginPath();
+ ctx.moveTo(-5,-9);
+ ctx.lineTo(11,-8);
+ ctx.lineTo(17,0);
+ ctx.lineTo(11,8);
+ ctx.lineTo(-5,9);
+ ctx.closePath();
+ ctx.fill();
+
+ ctx.fillStyle='#ffffff';
+ ctx.fillRect(16,-8,5,5);
+ ctx.fillRect(16,3,5,5);
+
+ ctx.restore();
+}
+
+function loop(ts){
+ const dt=Math.min((ts-last)/1000||0,.033);
+ last=ts;
+
+ if(!ended){
+  physicsCar(player,dt,'p1');
+
+  if(friendMode&&friendPlayer){
+   physicsCar(friendPlayer,dt,'p2');
+  }
+
+  for(const c of allBots){
+   physicsCar(c,dt,'bot');
+  }
+
+  for(const c of [...blueTeam,...orangeTeam]){
+   collideCarBall(c);
+  }
+
+  updateBoostPads(dt);
+  updateBall(dt);
+
+  if(!training){
+   time-=dt;
+
+   if(time<=0){
+    time=0;
+    ended=true;
+   }
+  }
+
+  updateHud();
+ }
+
+ draw();
+ requestAnimationFrame(loop);
+}
+
+const titleScreen=document.getElementById('titleScreen');
+const mainMenu=document.getElementById('mainMenu');
+const modeMenu=document.getElementById('modeMenu');
+const opponentMenu=document.getElementById('opponentMenu');
+const menuMessage=document.getElementById('menuMessage');
+
+function showMainMenu(){
+ titleScreen.style.display='none';
+ mainMenu.style.display='flex';
+ opponentMenu.style.display='none';
+ modeMenu.style.display='none';
+ document.getElementById('skinsMenu').style.display='none';
+ document.getElementById('gameWrap').style.display='none';
+ menuMessage.textContent='Elige Play, Train o Skins';
+ friendMode=false;
+ training=false;
+
+ for(const k in keys)keys[k]=false;
+}
+
+window.addEventListener('keydown',e=>{
+ keys[e.code]=true;
+
+ if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){
+  e.preventDefault();
+ }
+
+ if(e.code==='KeyK'){
+  showMainMenu();
+ }
+
+ if(e.code==='KeyR'&&document.getElementById('gameWrap').style.display!=='none'){
+  newGame();
+ }
+
+ if(e.code==='KeyE'&&training&&player&&ball){
+  ball.x=player.x+Math.cos(player.a)*58;
+  ball.y=player.y+Math.sin(player.a)*58;
+  ball.vx=0;
+  ball.vy=0;
+ }
+});
+
+window.addEventListener('keyup',e=>{
+ keys[e.code]=false;
+});
+
+document.getElementById('restart').addEventListener('click',newGame);
+
+document.getElementById('menuBtn').addEventListener('click',showMainMenu);
+
+document.getElementById('titlePanel').addEventListener('click',()=>{
+ titleScreen.style.display='none';
+ mainMenu.style.display='flex';
+});
+
+document.getElementById('playBtn').addEventListener('click',()=>{
+ mainMenu.style.display='none';
+ opponentMenu.style.display='flex';
+});
+
+document.getElementById('opponentBackBtn').addEventListener('click',()=>{
+ opponentMenu.style.display='none';
+ mainMenu.style.display='flex';
+});
+
+document.getElementById('friendBtn').addEventListener('click',()=>{
+ friendMode=true;
+ training=false;
+ selectedMode='1v1';
+
+ opponentMenu.style.display='none';
+ document.getElementById('gameWrap').style.display='block';
+
+ newGame();
+});
+
+document.getElementById('botBtn').addEventListener('click',()=>{
+ friendMode=false;
+
+ opponentMenu.style.display='none';
+ modeMenu.style.display='flex';
+});
+
+document.getElementById('backBtn').addEventListener('click',()=>{
+ modeMenu.style.display='none';
+ opponentMenu.style.display='flex';
+});
+
+document.getElementById('trainBtn').addEventListener('click',()=>{
+ menuMessage.textContent='';
+ friendMode=false;
+ training=true;
+
+ selectedMode='1v1';
+
+ mainMenu.style.display='none';
+ document.getElementById('gameWrap').style.display='block';
+
+ newGame();
+});
+
+document.getElementById('skinsBtn').addEventListener('click',()=>{
+ menuMessage.textContent='';
+ mainMenu.style.display='none';
+
+ document.getElementById('skinsMenu').style.display='flex';
+ renderSkinGrid();
+});
+
+document.getElementById('skinsBackBtn').addEventListener('click',()=>{
+ document.getElementById('skinsMenu').style.display='none';
+ mainMenu.style.display='flex';
+});
+
+function chooseMode(mode){
+ menuMessage.textContent='';
+
+ friendMode=false;
+ training=false;
+ selectedMode=mode;
+
+ modeMenu.style.display='none';
+ document.getElementById('gameWrap').style.display='block';
+
+ newGame();
+}
+
+document.getElementById('mode1').addEventListener('click',()=>chooseMode('1v1'));
+document.getElementById('mode2').addEventListener('click',()=>chooseMode('2v2'));
+document.getElementById('mode3').addEventListener('click',()=>chooseMode('3v3'));
+
+newGame();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
